@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Umingle Toolkit</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand">
+      <img src="../icons/icon48.png" alt="" width="32" height="32">
+      <div class="brand-copy">
+        <strong>Umingle Toolkit</strong>
+        <span>v<span id="version">3.6.0</span> · on this device</span>
+      </div>
+    </div>
+    <label class="power" title="Master switch: off leaves the page untouched">
+      <span class="power-word" id="powerWord">On</span>
+      <input type="checkbox" id="enabled" data-key="enabled" aria-label="Toolkit enabled">
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </header>
+
+  <div id="offNote" class="off-note">Toolkit is off. The page is left untouched.</div>
+
+  <div id="updateNote" class="update-note" role="status">
+    <span>Update <b>v<span id="updateVersion"></span></b> is available.</span>
+    <a href="https://github.com/alunit3/umingle-toolkit/releases/latest" id="updateLink" target="_blank" rel="noopener">Download</a>
+  </div>
+
+  <div class="readout" role="group" aria-label="Current state">
+    <button type="button" class="readout-cell" data-goto="band-matching">
+      <span class="readout-key">Filter</span>
+      <span class="readout-val" id="readoutFilter">Any</span>
+    </button>
+    <button type="button" class="readout-cell" data-goto="band-matching">
+      <span class="readout-key">Blocked</span>
+      <span class="readout-val num" id="readoutBlocked">0</span>
+    </button>
+    <button type="button" class="readout-cell" data-goto="band-today">
+      <span class="readout-key">Matches</span>
+      <span class="readout-val num" id="readoutMatches">0</span>
+    </button>
+  </div>
+
+  <main id="main">
+    <details class="band" id="band-matching" open>
+      <summary class="band-head">
+        <span class="band-name">Premium &amp; matching</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Premium skin</strong><small>Premium badge and banner</small></span>
+          <input type="checkbox" class="toggle" data-key="premium">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Country filter</strong><small>Leave strangers from other countries</small></span>
+          <input type="checkbox" class="toggle" data-key="autoSkip">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Easy skip</strong><small>One press skips, no confirmation</small></span>
+          <input type="checkbox" class="toggle" data-key="easySkip">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Remember filter</strong><small>Restore the filter after a reload</small></span>
+          <input type="checkbox" class="toggle" data-key="rememberFilter">
+        </label>
+        <div class="row row-static">
+          <span class="row-copy"><strong>Current filter</strong><small id="filterSummary">Any country</small></span>
+          <a href="https://umingle.com/video/" id="openFilter" class="mini">Open</a>
+        </div>
+        <label class="row row-text">
+          <span class="row-copy"><strong>Blocked countries</strong><small>Skip these at match time</small></span>
+          <input type="text" id="blockCountries" data-key="blockCountries" placeholder="IN, PK, BD" spellcheck="false">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Skip unknown country</strong><small>Skip matches without a country</small></span>
+          <input type="checkbox" class="toggle" data-key="skipUnknownCountry">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Hide throttle nag</strong><small>Hide the Premium wait notice</small></span>
+          <input type="checkbox" class="toggle" data-key="hideThrottle">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-call">
+      <summary class="band-head">
+        <span class="band-name">Call tools</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>City / ISP line</strong><small>Their city, ISP and local time</small></span>
+          <input type="checkbox" class="toggle" data-key="cityLookup">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Connection HUD</strong><small>Resolution, fps, bitrate and ping</small></span>
+          <input type="checkbox" class="toggle" data-key="hud">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>In-video toolbar</strong><small>Tools over the stranger's video</small></span>
+          <input type="checkbox" class="toggle" data-key="toolbar">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Shadowban alert</strong><small>Warn when a match is marked</small></span>
+          <input type="checkbox" class="toggle" data-key="shadowbanAlert">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Skip shadowbanned</strong><small>Leave marked matches automatically</small></span>
+          <input type="checkbox" class="toggle" data-key="skipShadowbanned">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Skip stalled calls</strong><small>Leave when the video freezes</small></span>
+          <input type="checkbox" class="toggle" data-key="skipStalled">
+        </label>
+        <label class="row row-number">
+          <span class="row-copy"><strong>Stall timeout</strong><small>Seconds without video</small></span>
+          <span class="num-wrap"><input type="number" id="stallSeconds" data-key="stallSeconds" min="4" max="120" step="1"><span>s</span></span>
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Keep screen awake</strong><small>During a call</small></span>
+          <input type="checkbox" class="toggle" data-key="wakeLock">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Leave-page guard</strong><small>Confirm before closing mid-call</small></span>
+          <input type="checkbox" class="toggle" data-key="leaveGuard">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-chat">
+      <summary class="band-head">
+        <span class="band-name">Chat &amp; page</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Auto-greet</strong><small>Say hello when matched</small></span>
+          <input type="checkbox" class="toggle" data-key="autoGreet">
+        </label>
+        <label class="row row-text">
+          <span class="row-copy"><strong>Greeting</strong><small>Separate options with <code>|</code></small></span>
+          <input type="text" id="greetText" data-key="greetText" placeholder="hey!|hi!" spellcheck="false">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Chat transcript</strong><small>Keep messages for download</small></span>
+          <input type="checkbox" class="toggle" data-key="chatLog">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Country in tab title</strong><small>Country and match timer</small></span>
+          <input type="checkbox" class="toggle" data-key="matchTitle">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-appearance">
+      <summary class="band-head">
+        <span class="band-name">Appearance &amp; sound</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <div class="row row-static">
+          <span class="row-copy"><strong>Self view</strong><small>Your own preview under the stranger</small></span>
+          <div class="seg" id="selfViewSeg">
+            <button type="button" data-selfview="mirror">Mirror</button>
+            <button type="button" data-selfview="normal">Normal</button>
+            <button type="button" data-selfview="hidden">Hidden</button>
+          </div>
+        </div>
+        <div class="row row-static">
+          <span class="row-copy"><strong>Volume boost</strong><small>Up to 2×, no clipping</small></span>
+          <div class="seg" id="boostSeg">
+            <button type="button" data-boost="1">1×</button>
+            <button type="button" data-boost="1.5">1.5×</button>
+            <button type="button" data-boost="2">2×</button>
+          </div>
+        </div>
+        <label class="row">
+          <span class="row-copy"><strong>Hotkeys</strong><small>S · P · B · M · H · C · D · V · N · ? (not while typing)</small></span>
+          <input type="checkbox" class="toggle" data-key="hotkeys">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-stealth">
+      <summary class="band-head">
+        <span class="band-name">Stealth</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Face-check stub</strong><small>Always reports a visible face</small></span>
+          <input type="checkbox" class="toggle" data-key="faceStub">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Camera name spoof</strong><small>Virtual cameras get a physical label</small></span>
+          <input type="checkbox" class="toggle" data-key="cameraSpoof">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Daily statistics</strong><small>Kept on this device</small></span>
+          <input type="checkbox" class="toggle" data-key="stats">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-page">
+      <summary class="band-head">
+        <span class="band-name">Page stealth</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Screenshot cover</strong><small>Hides the toolkit from server screenshots</small></span>
+          <input type="checkbox" class="toggle" data-key="stealthScreenshot">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Page check shield</strong><small>Answers page checks without running server code</small></span>
+          <input type="checkbox" class="toggle" data-key="stealthRc">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Block injected code</strong><small>Stops code the server tries to add to the page</small></span>
+          <input type="checkbox" class="toggle" data-key="stealthInjection">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Native-looking hooks</strong><small>Hooks look like native browser code</small></span>
+          <input type="checkbox" class="toggle" data-key="stealthHooks">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Neutral moderation snapshot</strong><small>Sends a stock image instead of your camera</small></span>
+          <input type="checkbox" class="toggle" data-key="moderationSpoof">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-session">
+      <summary class="band-head">
+        <span class="band-name">Session tricks</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Hide IP in calls</strong><small>Calls go through the relay only</small></span>
+          <input type="checkbox" class="toggle" data-key="relayOnly">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Multi-tab session</strong><small>Run several tabs without them closing each other</small></span>
+          <input type="checkbox" class="toggle" data-key="multiTab">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Moderator mode</strong><small>Unlocks moderator options in the page</small></span>
+          <input type="checkbox" class="toggle" data-key="moderatorMode">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Auto-next</strong><small>Keep searching after a stranger leaves</small></span>
+          <input type="checkbox" class="toggle" data-key="autoNext">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Escape instant skip</strong><small>Escape skips without confirmation</small></span>
+          <input type="checkbox" class="toggle" data-key="escapeSkip">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Unblank shadowbanned video</strong><small>Show video the server tried to blank</small></span>
+          <input type="checkbox" class="toggle" data-key="sbUnblank">
+        </label>
+      </div>
+    </details>
+
+    <details class="band" id="band-safety">
+      <summary class="band-head">
+        <span class="band-name">Session safety</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Hide ban notices</strong><small>Keep searching after a ban notice. The ban itself still applies</small></span>
+          <input type="checkbox" class="toggle" data-key="banBypass">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Anti-report</strong><small>Hide the report button and drop your reports</small></span>
+          <input type="checkbox" class="toggle" data-key="antiReport">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Fresh visitor per socket</strong><small>Start each connection as a new visitor</small></span>
+          <input type="checkbox" class="toggle" data-key="freshVisitor">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Block server navigation</strong><small>Ignore server redirects</small></span>
+          <input type="checkbox" class="toggle" data-key="blockRedirects">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Skip login gate</strong><small>Ignore the login prompt</small></span>
+          <input type="checkbox" class="toggle" data-key="noLoginGate">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Keep Premium</strong><small>Keep Premium after the server resets it</small></span>
+          <input type="checkbox" class="toggle" data-key="keepPremium">
+        </label>
+        <label class="row">
+          <span class="row-copy"><strong>Keep interests</strong><small>Keep your interests</small></span>
+          <input type="checkbox" class="toggle" data-key="keepInterests">
+        </label>
+        <div class="row row-static">
+          <span class="row-copy"><strong>New identity</strong><small>New visitor and reload. Banned? Change your IP first</small></span>
+          <button type="button" id="newIdentity" class="link">New identity</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="band" id="band-memory">
+      <summary class="band-head">
+        <span class="band-name">Stranger memory</span>
+        <span class="band-count num"></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <label class="row">
+          <span class="row-copy"><strong>Remember strangers</strong><small><span id="ipCount">0</span> seen · repeats are flagged and your note comes back</small></span>
+          <input type="checkbox" class="toggle" data-key="ipHistory">
+        </label>
+        <div class="row row-static">
+          <span class="row-copy"><strong>Stored strangers</strong><small>Address and notes, on this device only</small></span>
+          <button type="button" id="clearIps" class="link">Clear</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="band band-stats" id="band-today">
+      <summary class="band-head">
+        <span class="band-name">Today <span id="statDate" class="stat-date"></span></span>
+        <span class="band-chev" aria-hidden="true"></span>
+      </summary>
+      <div class="band-body">
+        <div class="stat-grid">
+          <div class="stat"><span id="statMatches" class="num">0</span><small>matches</small></div>
+          <div class="stat"><span id="statSkips" class="num">0</span><small>skips</small></div>
+          <div class="stat"><span id="statSb" class="num">0</span><small>shadowbanned</small></div>
+          <div class="stat"><span id="statThrottles" class="num">0</span><small>throttled</small></div>
+          <div class="stat"><span id="statWait" class="num">—</span><small>avg wait</small></div>
+          <div class="stat"><span id="statTalk" class="num">—</span><small>talk time</small></div>
+        </div>
+        <div id="statCountries" class="chips"></div>
+        <div class="stats-foot">
+          <button type="button" id="resetStats" class="link">Reset stats</button>
+        </div>
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    <button type="button" id="openUmingle" class="primary">Open Umingle</button>
+    <button type="button" id="checkUpdate" class="ghost" title="Check GitHub for a new release">Updates</button>
+    <button type="button" id="resetSettings" class="ghost">Reset settings</button>
+  </footer>
+
+  <div id="popupToast" class="popup-toast" role="status"></div>
+
+  <script src="defaults.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

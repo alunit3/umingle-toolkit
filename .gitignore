@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.zip
+
+# Test output
+test/.build/
+test/ext_test_report.json
+__pycache__/
+*.pyc
+
+# Local design notes and AI artifacts (not repository content)
+DESIGN.md
+.impeccable/
+
+# Environment
+.env
+.env.*
+
+# Logs, coverage and browser test artifacts
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

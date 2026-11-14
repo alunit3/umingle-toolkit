@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umingle Toolkit harness</title>
+<style>
+  :root { --violet: #673ddc; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #f6f4fc; color: #1f1b2e; }
+  .dark-mode body { background: #0c0914; color: #ece8f8; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(0,0,0,.1); }
+  header .rightSide { display: flex; align-items: center; gap: 10px; }
+  .switch input { width: 18px; height: 18px; }
+  .mainBox { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+  .videoGridMain { display: flex; gap: 10px; }
+  .videoWrapper { position: relative; width: 240px; height: 180px; background: #111012; border-radius: 10px; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+  .chatWindow { width: 320px; border: 1px solid rgba(0,0,0,.12); border-radius: 10px; padding: 10px; background: #fff; }
+  .dark-mode .chatWindow { background: #14101f; }
+  #mainMessages { min-height: 90px; }
+  .chatSendRow { display: flex; gap: 6px; margin-top: 8px; }
+  .messageInput { flex: 1 1 auto; padding: 7px 9px; border: 1px solid rgba(0,0,0,.18); border-radius: 8px; font: inherit; font-size: 12px; }
+  .sb { border: 0; border-radius: 8px; padding: 7px 12px; background: var(--violet); color: #fff; font-weight: 700; cursor: pointer; }
+  #myVideo { transform: rotateY(180deg); }
+  #info { margin-top: 8px; }
+  .countryInfo { display: none; align-items: center; gap: 8px; font-weight: 700; }
+  #countryFlag { font-size: 20px; }
+  .matchingInterests { color: #6b6680; font-size: 12px; margin-top: 4px; }
+  .skipButton { margin-top: 10px; padding: 9px 16px; border: 0; border-radius: 8px; background: var(--violet); color: #fff; font-weight: 700; cursor: pointer; }
+  #premiumThrottle { display: none; margin: 8px 0; padding: 8px; border: 1px dashed #c06a1c; border-radius: 8px; color: #5a3208; background: #fff4e5; }
+  .country-filter-wrapper { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; }
+  .cf-option { padding: 6px 10px; border: 1px solid rgba(0,0,0,.15); border-radius: 999px; cursor: pointer; background: #fff; font-size: 12px; }
+  .cf-option.selected { border-color: var(--violet); background: rgba(103,61,220,.1); font-weight: 700; }
+  .cf-multi-row { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+  #cf-multi-toggle { width: 15px; height: 15px; }
+  #cf-reset-btn { padding: 6px 10px; border: 0; background: transparent; cursor: pointer; font-size: 12px; text-decoration: underline; }
+  #premiumCheckoutOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; }
+  #vipStatusBadge { display: none; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(103,61,220,.12); font-size: 12px; font-weight: 700; }
+  #vipActiveBanner, #extendReassurance { display: none; }
+  .premium-upgrade-btn { border: 0; border-radius: 8px; padding: 8px 12px; background: var(--violet); color: #fff; font-weight: 700; cursor: pointer; }
+  .checkout-card { background: #fff; color: #1f1b2e; padding: 20px; border-radius: 12px; width: 360px; }
+  .reportButton { border: 0; background: transparent; color: #8a2f2f; font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 6px; }
+  #banOverlay, #ageVerificationOverlay, #loginOverlay, #popupOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; }
+  .site-overlay-card { background: #fff; color: #1f1b2e; padding: 18px; border-radius: 12px; width: 320px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="leftSide"><strong>umingle</strong></div>
+  <div class="rightSide">
+    <button id="toggleDark" type="button">Dark</button>
+    <div id="vipStatusBadge"><span>Premium</span><span id="vipTimeLeft">—</span></div>
+  </div>
+</header>
+
+<div class="mainBox">
+  <div class="videoGridMain">
+    <div class="videoWrapper local"><video id="myVideo" autoplay playsinline></video></div>
+    <div class="videoWrapper remote"><video id="otherVideo" autoplay playsinline></video></div>
+  </div>
+  <div class="chatWindow">
+    <div id="premiumThrottle"><button id="buyPremiumBtn" type="button">Skip Instantly</button></div>
+    <div id="mainMessages"></div>
+    <div class="chatSendRow">
+      <input class="messageInput" type="text" placeholder="Say something..." autocomplete="off">
+      <button class="sb" type="button">Send</button>
+    </div>
+    <div id="info">
+      <div class="countryInfo" id="countryInfo"><span id="countryFlag"></span><span id="countryName"></span></div>
+      <div class="matchingInterests"></div>
+    </div>
+    <button class="actionButton skipButton" type="button"><div class="mainText">Skip</div></button>
+    <button class="reportButton" type="button">Report</button>
+  </div>
+</div>
+
+<div id="popupOverlay">
+  <div class="site-overlay-card">
+    <strong>Report this user?</strong>
+    <p>Reports are reviewed by moderators.</p>
+    <button id="confirmBan" type="button">Report</button>
+    <button id="cancelBan" type="button">Cancel</button>
+  </div>
+</div>
+
+<div id="banOverlay">
+  <div class="site-overlay-card">
+    <strong id="banReason">Banned</strong>
+    <div>Reference: <span id="banId"></span></div>
+  </div>
+</div>
+
+<div id="ageVerificationOverlay">
+  <div class="site-overlay-card"><strong>Age verification</strong><div class="age-modal-ref"></div></div>
+</div>
+
+<div id="loginOverlay">
+  <div class="site-overlay-card"><strong>Log in to continue</strong></div>
+</div>
+
+<div class="country-filter-wrapper">
+  <div class="cf-option selected" data-country="ANY">Smart Match</div>
+  <div class="cf-option" data-country="US">United States</div>
+  <div class="cf-option" data-country="ID">Indonesia</div>
+  <div class="cf-option" data-country="BR">Brazil</div>
+  <div class="cf-option" data-country="JP">Japan</div>
+  <label class="cf-multi-row"><input type="checkbox" id="cf-multi-toggle"> Multi</label>
+  <button id="cf-reset-btn" type="button">Reset</button></div>
+
+<div id="premiumCheckoutOverlay">
+  <div class="checkout-card">
+    <div id="checkoutHeaderText">Get Premium</div>
+    <div id="vipActiveBanner">Premium active - <span id="checkoutExactTimer">00:00:00</span></div>
+    <div id="extendReassurance">Your Premium stays active</div>
+    <button class="premium-upgrade-btn" type="button"><span class="premium-bolt">⚡</span> Get Premium</button>
+  </div>
+</div>
+
+<div class="injectPoint" hidden></div>
+<div id="multipleTabsOverlay" style="display:none">Another tab is open</div>
+
+<script>
+(function () {
+  'use strict';
+
+  window.__h = {
+    ready: false,
+    presses: 0,
+    secondPresses: 0,
+    mashPauses: 0,
+    checkoutOpens: 0,
+    conns: 0,
+    ends: 0,
+    throttles: 0,
+    chats: 0,
+    connected: false,
+    wsOpen: false,
+    sent: [],
+    workerMsgs: [],
+    moderator: false,
+    lastConn: null,
+    // v3.2 site paths
+    cookies: 0,
+    newtab: 0,
+    cm: false,
+    cmRaw: '',
+    ss: 0,
+    rcRuns: 0,
+    rcRan: 0,
+    rcCodes: [],
+    injections: 0,
+    injectedScriptRan: false,
+    autoSearches: 0,
+    bcHits: 0,
+    screenshotSends: 0,
+    moderationSends: 0,
+    lastSb: null,
+    sbCount: 0,
+    // v3.3 site paths
+    bans: 0,
+    ageBlocks: 0,
+    redirects: 0,
+    redirectTo: null,
+    requireLogins: 0,
+    premiumExpireds: 0,
+    clearInterests: 0,
+    vms: 0,
+    forceEnds: 0,
+    reports: 0,
+    bannedFlag: false,
+    banReason: '',
+    ageFlag: false,
+    requiresLogin: false,
+    reportTarget: 'peer-1',
+  };
+
+  const $ = (s) => document.querySelector(s);
+  const skipBtn = $('.skipButton');
+  const skipLabel = skipBtn.querySelector('.mainText');
+
+  // --- the site's real two-press skip --------------------------------------
+  // window.pressed + pu(): every press is recorded; four presses with all
+  // three gaps under 400 ms trigger the mashing pause.
+  window.pressed = [];
+  function pu() {
+    window.pressed.push(Date.now());
+    while (window.pressed.length > 4) window.pressed.shift();
+    if (window.pressed.length === 4) {
+      const gaps = [
+        window.pressed[1] - window.pressed[0],
+        window.pressed[2] - window.pressed[1],
+        window.pressed[3] - window.pressed[2],
+      ];
+      if (Math.max.apply(null, gaps) < 400) return true;
+    }
+    return false;
+  }
+
+  skipBtn.addEventListener('mousedown', () => {
+    window.__h.presses++;
+    if (pu()) {
+      window.__h.mashPauses++;
+      return;
+    }
+    const text = skipLabel.textContent.trim();
+    if (text === 'Skip') {
+      skipLabel.textContent = 'Really?';
+    } else if (text === 'Really?' || text === 'Really') {
+      window.__h.secondPresses++;
+      skipLabel.textContent = 'Searching';
+      setTimeout(() => { skipLabel.textContent = 'Skip'; }, 140);
+    }
+  });
+
+  // --- the site's real chat send (pq) -------------------------------------
+  function appendMessage(who, text) {
+    const row = document.createElement('div');
+    const span = document.createElement('span');
+    span.className = who === 'You' ? 'You' : 'Partner';
+    span.textContent = who;
+    row.appendChild(span);
+    row.appendChild(document.createTextNode(' ' + text));
+    $('#mainMessages').appendChild(row);
+    window.__h.chats++;
+    return row;
+  }
+  window.__chat = function (who, text) { return appendMessage(who || 'Partner', text || ''); };
+
+  const messageInput = $('.messageInput');
+  function siteSend() {
+    messageInput.focus();
+    const value = messageInput.value;
+    if (!value || !window.__h.connected) return false;
+    window.__h.sent.push({ event: 'sendMessage', message: value });
+    appendMessage('You', value);
+    messageInput.value = '';
+    return true;
+  }
+  $('.sb').addEventListener('click', siteSend);
+  messageInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); siteSend(); }
+  });
+
+  // --- the site's real country filter gate --------------------------------
+  const chosen = new Set();
+  function selectedCodes() {
+    return Array.from(chosen).sort();
+  }
+  window.__selectedCodes = selectedCodes;
+
+  function paintFilter() {
+    document.querySelectorAll('.cf-option[data-country]').forEach((el) => {
+      const code = el.getAttribute('data-country');
+      if (chosen.size === 0) el.classList.toggle('selected', code === 'ANY');
+      else el.classList.toggle('selected', code !== 'ANY' && chosen.has(code));
+    });
+  }
+
+  function sendCountries() {
+    window.__h.sent.push({ event: 'searchCountries', countries: Array.from(chosen) });
+    return true;
+  }
+
+  document.querySelectorAll('.cf-option[data-country]').forEach((el) => {
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const code = el.getAttribute('data-country');
+      const expiry = parseInt(localStorage.getItem('vip_expiry') || '0', 10);
+      const vip = expiry > Date.now() || window.__h.moderator;
+      if (!vip && code !== 'ANY') {
+        window.__h.checkoutOpens++;
+        $('#premiumCheckoutOverlay').style.display = 'flex';
+        return;
+      }
+      const multi = $('#cf-multi-toggle').checked;
+      let close = true;
+      if (code === 'ANY') {
+        chosen.clear();
+      } else if (multi) {
+        if (chosen.has(code)) chosen.delete(code); else chosen.add(code);
+        close = false;
+      } else {
+        chosen.clear();
+        chosen.add(code);
+      }
+      paintFilter();
+      sendCountries();
+      if (close) document.querySelector('.country-filter-wrapper').classList.remove('open');
+    });
+  });
+
+  document.querySelector('.country-filter-wrapper').classList.add('open');
+
+  $('#cf-reset-btn').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    chosen.clear();
+    paintFilter();
+    sendCountries();
+  });
+
+  $('#premiumCheckoutOverlay').addEventListener('click', (ev) => {
+    if (ev.target === $('#premiumCheckoutOverlay')) $('#premiumCheckoutOverlay').style.display = 'none';
+  });
+  window.__closeCheckout = () => { $('#premiumCheckoutOverlay').style.display = 'none'; };
+
+  // The real page creates these dynamically; the harness could not know
+  // premium state before the extension runs.
+  window.__h.ready = true;
+
+  // --- the real WebSocket (routed by Playwright) --------------------------
+  function siteEnd() {
+    window.__h.ends++;
+    window.__h.connected = false;
+    $('#countryInfo').style.display = 'none';
+    skipLabel.textContent = 'Skip';
+  }
+
+  function siteSearch() {
+    window.__h.autoSearches++;
+    if (window.__ws && window.__ws.readyState === 1) {
+      window.__ws.send(JSON.stringify({ event: 'findPeer', type: 'video' }));
+    }
+  }
+
+  // The site's dE(): after a stranger leaves it searches again unless
+  // `window.disabled` (the auto-skip flag) is set.
+  function dE() {
+    siteEnd();
+    if (!window.disabled) siteSearch();
+  }
+
+  function showMultipleTabs() {
+    $('#multipleTabsOverlay').style.display = 'flex';
+  }
+
+  // --- the site's report path (window.actions.report) ----------------------
+  try { localStorage.setItem('interests', JSON.stringify(['makassar', 'music'])); } catch (e) { /* ignore */ }
+  window.actions = {
+    report(id) {
+      window.__h.reports++;
+      window.__ws.send(JSON.stringify({ event: 'report', id }));
+      appendMessage('System', 'Thank you! Your report has been received and is under review.');
+    },
+  };
+  $('.reportButton').addEventListener('click', () => {
+    $('#popupOverlay').style.display = 'flex';
+  });
+  $('#cancelBan').addEventListener('click', () => {
+    $('#popupOverlay').style.display = 'none';
+  });
+  $('#confirmBan').addEventListener('click', () => {
+    $('#popupOverlay').style.display = 'none';
+    window.actions.report(window.__h.reportTarget);
+  });
+
+  // What `pa()` would do: a banned or login-gated page refuses to search.
+  window.__searchNow = function () {
+    if (window.__h.bannedFlag || window.__h.requiresLogin) return false;
+    siteSearch();
+    return true;
+  };
+  window.__siteBanned = () => !!window.__h.bannedFlag;
+
+  // --- the site's screenshot challenge (pp) --------------------------------
+  // Real html2canvas is 200 kB from a CDN; a slow stub keeps the harness
+  // offline and leaves a measurable window for the CSS hide.
+  window.html2canvas = async function () {
+    await new Promise((r) => setTimeout(r, 320));
+    const c = document.createElement('canvas');
+    c.width = 80;
+    c.height = 60;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#f6f4fc';
+    ctx.fillRect(0, 0, 80, 60);
+    return { toBlob: (cb, type) => c.toBlob(cb, type || 'image/png') };
+  };
+
+  async function pp() {
+    await document.fonts.ready;
+    const shot = await window.html2canvas(document.body, { logging: false });
+    const png = await new Promise((resolve) => shot.toBlob(resolve, 'image/png'));
+    if (!png) return false;
+    window.__ws.send(new Blob([new Uint8Array([9]), png]));
+    window.__h.screenshotSends++;
+    return true;
+  }
+  window.__screenshot = async function () { return pp(); };
+
+  // --- the site's moderation snapshot (p9) --------------------------------
+  function fakeWebcamJpeg() {
+    const c = document.createElement('canvas');
+    c.width = 300;
+    c.height = 225;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(300, 225);
+    for (let i = 0; i < img.data.length; i += 4) {
+      img.data[i] = (i * 7) % 256;
+      img.data[i + 1] = (i * 13) % 256;
+      img.data[i + 2] = (i * 29) % 256;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.65));
+  }
+
+  window.__moderation = async function () {
+    const jpeg = await fakeWebcamJpeg();
+    const blob = new Blob([new Uint8Array([1]), jpeg]);
+    window.__ws.send(blob);
+    window.__h.moderationSends++;
+    return blob.size;
+  };
+
+  // --- the sibling-tab handshake (BroadcastChannel) ------------------------
+  if ('BroadcastChannel' in window) {
+    const bc = new BroadcastChannel('tab');
+    window.__bc = bc;
+    bc.postMessage('another-tab');
+    bc.addEventListener('message', (ev) => {
+      if (ev.data === 'another-tab') {
+        window.__h.bcHits++;
+        showMultipleTabs();
+      }
+    });
+  }
+
+  function onFrame(ev) {
+    if (typeof ev.data !== 'string') return;
+
+    // Raw frames from the site's Ri["onmessage"].
+    if (ev.data === 'end') { dE(); return; }
+    if (ev.data === 'ping') return;
+    if (ev.data === 'cm' || ev.data === 'cm2') {
+      window.__h.cm = true;
+      window.__h.cmRaw = ev.data;
+      window.__h.moderator = true; // the site's E.cm, also read by the filter gate
+      return;
+    }
+    if (ev.data === 'ncm') { window.__h.cm = false; window.__h.moderator = false; return; }
+    if (ev.data === 'newtab') { window.__h.newtab++; showMultipleTabs(); return; }
+    if (ev.data === 'forceEnd') {
+      window.__h.forceEnds++;
+      siteEnd();
+      showMultipleTabs();
+      return;
+    }
+    if (ev.data === 'vm') {
+      // The site appends `_cb=<now>` and reloads. Recorded, not navigated.
+      window.__h.vms++;
+      window.__h.redirectTo = location.href + (location.href.indexOf('?') === -1 ? '?' : '&') + '_cb=' + Date.now();
+      return;
+    }
+    if (ev.data === 'typing' || ev.data === 'stopTyping') return;
+
+    let msg = null;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (!msg || typeof msg.event !== 'string') return;
+    window.__h.msgTimes = window.__h.msgTimes || [];
+    window.__h.msgTimes.push({ event: msg.event, t: Date.now() });
+
+    if (msg.event === 'conn') {
+      window.__h.conns++;
+      window.__h.connected = true;
+      window.__h.lastConn = msg;
+      window.__h.lastSb = !!msg.sb;
+      if (msg.sb) window.__h.sbCount++;
+      const info = $('#countryInfo');
+      info.style.display = 'flex';
+      $('#countryFlag').textContent = '🏳';
+      $('#countryName').textContent = (msg.cName || msg.country || '?') +
+        (msg.country ? ' (' + msg.country + ')' : '');
+      skipLabel.textContent = 'Skip';
+    } else if (msg.event === 'end') {
+      dE();
+    } else if (msg.event === 'throttle') {
+      window.__h.throttles++;
+      // This is what the site does: reveal the nag.
+      $('#premiumThrottle').style.display = 'flex';
+    } else if (msg.event === 'vip_active') {
+      window.__h.vipActive = true;
+    } else if (msg.event === 'cookie') {
+      window.__h.cookies++;
+      document.cookie = 'user=' + msg.id + '; Max-Age=31536000; Path=/; Secure';
+    } else if (msg.event === 'ss') {
+      window.__h.ss++;
+      pp();
+    } else if (msg.event === 'rc') {
+      window.__h.rcRuns++;
+      window.__h.rcCodes.push(msg.code);
+      let result = null;
+      try { result = (0, eval)(msg.code); } catch (e) { result = null; }
+      window.__ws.send(JSON.stringify({ event: 'evalResult', result }));
+    } else if (msg.event === 'injection') {
+      window.__h.injections++;
+      const point = document.querySelector('.injectPoint');
+      point.innerHTML = msg.data || '';
+      Array.from(point.getElementsByTagName('script')).forEach((old) => {
+        const script = document.createElement('script');
+        script.textContent = old.textContent;
+        document.body.appendChild(script);
+        old.parentNode.removeChild(old);
+      });
+    } else if (msg.event === 'banned') {
+      window.__h.bans++;
+      window.__h.bannedFlag = true;
+      window.__h.banReason = msg.reason || '';
+      siteEnd();
+      $('#banReason').textContent = msg.reason || 'Banned';
+      $('#banId').textContent = msg.banId || '';
+      $('#banOverlay').style.display = 'flex';
+    } else if (msg.event === 'ageBlock') {
+      window.__h.ageBlocks++;
+      window.__h.ageFlag = true;
+      siteEnd();
+      $('.age-modal-ref').textContent = msg.banId || '';
+      $('#ageVerificationOverlay').style.display = 'flex';
+    } else if (msg.event === 'redirect') {
+      window.__h.redirects++;
+      window.__h.redirectTo = msg.url || '';
+    } else if (msg.event === 'requireLogin') {
+      window.__h.requireLogins++;
+      window.__h.requiresLogin = true;
+      siteEnd();
+      $('#loginOverlay').style.display = 'flex';
+    } else if (msg.event === 'premiumExpired') {
+      window.__h.premiumExpireds++;
+      localStorage.removeItem('vip_expiry');
+      document.body.classList.remove('is-vip');
+    } else if (msg.event === 'clearInterests') {
+      window.__h.clearInterests++;
+      localStorage.removeItem('interests');
+    }
+  }
+
+  window.__connect = function () {
+    const ws = new WebSocket('wss://umingle.com/ws?video');
+    window.__ws = ws;
+    ws.addEventListener('open', () => { window.__h.wsOpen = true; });
+    ws.addEventListener('message', onFrame);
+    return true;
+  };
+
+  window.__send = function (obj) {
+    window.__h.sent.push(obj);
+    if (window.__ws && window.__ws.readyState === 1) window.__ws.send(JSON.stringify(obj));
+  };
+
+  window.__skipLabel = () => skipLabel.textContent.trim();
+  window.__setModerator = (v) => { window.__h.moderator = !!v; };
+  window.__setThrottle = (on) => {
+    $('#premiumThrottle').style.display = on ? 'flex' : 'none';
+  };
+  window.__themeDark = () => document.documentElement.classList.contains('dark-mode');
+
+  // --- a real RTCPeerConnection with a scripted getStats ------------------
+  window.__makePc = function (relay) {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    window.__pc = pc;
+    let bytes = 500000;
+    let frames = 300;
+    let outBytes = 200000;
+    const map = new Map();
+    map.set('in', {
+      id: 'in', type: 'inbound-rtp', kind: 'video',
+      bytesReceived: bytes, framesDecoded: frames,
+      frameWidth: 640, frameHeight: 480, framesPerSecond: 30,
+    });
+    map.set('out', {
+      id: 'out', type: 'outbound-rtp', kind: 'video',
+      bytesSent: outBytes, framesEncoded: 240,
+    });
+    map.set('pair', {
+      id: 'pair', type: 'candidate-pair', state: 'succeeded', selected: true,
+      localCandidateId: 'lc', remoteCandidateId: 'rc', currentRoundTripTime: 0.042,
+    });
+    map.set('lc', { id: 'lc', type: 'local-candidate', candidateType: relay ? 'relay' : 'host' });
+    map.set('rc', { id: 'rc', type: 'remote-candidate', candidateType: relay ? 'relay' : 'srflx' });
+    pc.getStats = async () => {
+      bytes += 50000;
+      frames += 15;
+      outBytes += 25000;
+      map.set('in', {
+        id: 'in', type: 'inbound-rtp', kind: 'video',
+        bytesReceived: bytes, framesDecoded: frames,
+        frameWidth: 640, frameHeight: 480, framesPerSecond: 30,
+      });
+      map.set('out', {
+        id: 'out', type: 'outbound-rtp', kind: 'video',
+        bytesSent: outBytes, framesEncoded: 240,
+      });
+      return map;
+    };
+    window.__statsMap = map;
+    return true;
+  };
+
+  // A real (canvas) camera so the snapshot path has a frame to draw.
+  window.__armVideo = function () {
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#3a7f6a';
+    ctx.fillRect(0, 0, 160, 120);
+    ctx.fillStyle = '#f2c14e';
+    ctx.fillRect(40, 30, 80, 60);
+    const stream = canvas.captureStream(5);
+    const video = document.getElementById('otherVideo');
+    video.srcObject = stream;
+    video.play().catch(() => {});
+    window.__streamCanvas = canvas;
+    return true;
+  };
+
+  window.__setRelay = function (relay) {
+    if (!window.__statsMap) return false;
+    window.__statsMap.set('lc', { id: 'lc', type: 'local-candidate', candidateType: relay ? 'relay' : 'host' });
+    window.__statsMap.set('rc', { id: 'rc', type: 'remote-candidate', candidateType: relay ? 'relay' : 'srflx' });
+    return true;
+  };
+
+  window.__addSrflx = async function (ip) {
+    if (!window.__pc) return 'no-pc';
+    try {
+      await window.__pc.addIceCandidate({
+        candidate: 'candidate:1 1 udp 2122260223 ' + ip + ' 5000 typ srflx raddr 0.0.0.0 rport 0',
+        sdpMid: '0',
+        sdpMLineIndex: 0,
+      });
+    } catch (e) {
+      // No remote description: the extension still captured the address.
+    }
+    return 'added';
+  };
+
+  window.__addHostCandidate = async function (ip) {
+    if (!window.__pc) return 'no-pc';
+    try {
+      await window.__pc.addIceCandidate({
+        candidate: 'candidate:2 1 udp 2122260223 ' + ip + ' 5000 typ host',
+        sdpMid: '0',
+        sdpMLineIndex: 0,
+      });
+    } catch (e) { /* expected */ }
+    return 'added';
+  };
+
+  window.__runWorker = function () {
+    const w = new Worker('/static/vision.js');
+    window.__worker = w;
+    w.onmessage = (e) => { window.__h.workerMsgs.push(e.data); };
+    w.postMessage({ action: 'loadFaceDetector' });
+    w.postMessage({ action: 'detectFaces', job_id: 77 });
+    return true;
+  };
+
+  window.__pipCalls = 0;
+  window.__armPip = function () {
+    const video = document.getElementById('otherVideo');
+    video.srcObject = new MediaStream();
+    try {
+      video.requestPictureInPicture = async function () {
+        window.__pipCalls++;
+        return { stub: true };
+      };
+    } catch (e) { /* read only */ }
+    return true;
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,891 @@
+/*
+ * Umingle Toolkit - injected UI.
+ *
+ * One instrument panel world, shared with the popup: graphite chrome over the
+ * video, one violet signal that only ever means "on", amber for limits, coral
+ * for mute. Everything is namespaced with utk-/cityGuess, so the site's own
+ * styles are not affected.
+ */
+
+:root {
+  --utk-ink: #f1eef9;
+  --utk-muted: #b3adc4;
+  --utk-line: rgba(255, 255, 255, 0.1);
+  --utk-line-soft: rgba(255, 255, 255, 0.06);
+  --utk-chrome: rgba(16, 13, 22, 0.72);
+  --utk-chrome-solid: rgba(18, 15, 25, 0.97);
+  --utk-accent: #a78dff;
+  --utk-on-accent: #12101a;
+  --utk-accent-soft: rgba(167, 141, 255, 0.16);
+  --utk-amber: #e9b978;
+  --utk-amber-soft: rgba(233, 185, 120, 0.12);
+  --utk-amber-line: rgba(233, 185, 120, 0.34);
+  --utk-coral: #ff9a82;
+  --utk-sans: ui-sans-serif, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --utk-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+}
+
+/* The server-side throttle wait stays; only the nag is hidden. */
+html.utk-hide-throttle #premiumThrottle {
+  display: none !important;
+}
+
+/* Anti-report: hide the site's own report button while outgoing reports are
+   dropped in the page world. */
+html.utk-hide-report .reportButton {
+  display: none !important;
+}
+
+html.utk-disabled .utk-hud,
+html.utk-disabled .utk-tools,
+html.utk-disabled .utk-menu,
+html.utk-disabled .utk-sb-banner,
+html.utk-disabled .cityGuessLine,
+html.utk-disabled .utk-revisit,
+html.utk-disabled .utk-stranger-note,
+html.utk-disabled .utk-toasts {
+  display: none !important;
+}
+
+/* Server `ss` challenge screenshot: the page is captured, our own overlays
+   must not be in it. visibility keeps the layout identical to a clean visit. */
+html.utk-ss-hide .utk-hud,
+html.utk-ss-hide .utk-tools,
+html.utk-ss-hide .utk-menu,
+html.utk-ss-hide .utk-sb-banner,
+html.utk-ss-hide .cityGuessLine,
+html.utk-ss-hide .utk-revisit,
+html.utk-ss-hide .utk-stranger-note,
+html.utk-ss-hide .utk-toasts,
+html.utk-ss-hide .utk-help,
+html.utk-ss-hide .utk-note {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Own preview: the site mirrors #myVideo by default. */
+html.utk-self-normal #myVideo {
+  transform: none !important;
+}
+
+html.utk-self-hidden #myVideo {
+  visibility: hidden !important;
+}
+
+/* ==========================================================================
+   City / ISP / local time line
+   ========================================================================== */
+.cityGuessLine {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: #4b5563;
+  font-size: 0.9em;
+  font-weight: 550;
+  line-height: 1.25;
+  margin-top: 1px;
+  overflow-wrap: anywhere;
+}
+
+.utk-geo-pin {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.utk-geo-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.dark-mode .cityGuessLine {
+  color: #b4b4c2;
+}
+
+/* ==========================================================================
+   Seen-before line (stranger IP memory)
+   ========================================================================== */
+.utk-revisit {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: #7c5a12;
+  font-size: 0.9em;
+  font-weight: 650;
+  line-height: 1.25;
+  margin-top: 1px;
+  overflow-wrap: anywhere;
+}
+
+.dark-mode .utk-revisit {
+  color: #e8c57a;
+}
+
+/* ==========================================================================
+   Per-stranger note (click to edit; also reachable from the More menu)
+   ========================================================================== */
+.utk-stranger-note {
+  display: none;
+  align-items: flex-start;
+  gap: 6px;
+  color: #4a4660;
+  font-size: 0.9em;
+  font-weight: 550;
+  line-height: 1.3;
+  margin-top: 1px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.utk-stranger-note:hover {
+  opacity: 0.82;
+}
+
+.dark-mode .utk-stranger-note {
+  color: #c7bfe0;
+}
+
+.utk-note-ico {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  margin-top: 0.16em;
+  opacity: 0.75;
+}
+
+.utk-note-body {
+  flex: 1 1 0;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.utk-note-card {
+  width: min(440px, 100%);
+}
+
+.utk-note-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--utk-line-soft);
+}
+
+.utk-note-head strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.utk-note-head span {
+  font: 500 10.5px/1.4 var(--utk-mono);
+  opacity: 0.65;
+}
+
+.utk-note-input {
+  margin: 14px 18px 0;
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--utk-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--utk-ink);
+  font: 500 13px/1.45 var(--utk-sans);
+  outline: none;
+}
+
+.utk-note-input:focus {
+  border-color: var(--utk-accent);
+  box-shadow: 0 0 0 3px var(--utk-accent-soft);
+}
+
+.utk-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 16px;
+}
+
+.utk-note-spacer {
+  flex: 1 1 auto;
+}
+
+.utk-note-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--utk-line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--utk-ink);
+  font: 600 12px/1 var(--utk-sans);
+  cursor: pointer;
+}
+
+.utk-note-btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.utk-note-btn.primary {
+  background: var(--utk-accent);
+  border-color: var(--utk-accent);
+  color: var(--utk-on-accent);
+}
+
+.utk-note-btn.primary:hover {
+  filter: brightness(1.06);
+}
+
+.utk-note-btn.danger {
+  color: var(--utk-coral);
+  border-color: rgba(255, 154, 130, 0.32);
+  background: transparent;
+}
+
+.utk-note-btn[hidden] {
+  display: none;
+}
+
+/* ==========================================================================
+   Connection HUD - a single readout bar over the video
+   ========================================================================== */
+.videoWrapper.remote {
+  position: relative;
+  container-type: inline-size;
+}
+
+.utk-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 24;
+  display: none;
+  align-items: center;
+  gap: 0;
+  max-width: calc(100% - 128px);
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--utk-chrome);
+  border: 1px solid var(--utk-line);
+  color: var(--utk-ink);
+  font: 500 10.5px/1.2 var(--utk-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.utk-hud span {
+  white-space: nowrap;
+}
+
+.utk-hud > span + span {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--utk-line-soft);
+}
+
+.utk-hud-mode {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--utk-accent);
+  color: var(--utk-on-accent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.utk-hud > .utk-hud-mode + span {
+  margin-left: 8px;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.utk-hud.utk-relay .utk-hud-mode {
+  background: var(--utk-amber);
+}
+
+.utk-hud-rtt:empty,
+.utk-hud-out:empty,
+.utk-hud-time:empty {
+  display: none;
+}
+
+.utk-hud-res,
+.utk-hud-fps {
+  color: var(--utk-ink);
+  opacity: 0.9;
+}
+
+.utk-hud-rate {
+  color: var(--utk-ink);
+}
+
+.utk-hud-out,
+.utk-hud-rtt,
+.utk-hud-time {
+  color: var(--utk-muted);
+}
+
+/* ==========================================================================
+   In-video toolbar
+   ========================================================================== */
+.utk-tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--utk-chrome);
+  border: 1px solid var(--utk-line);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+  opacity: 0.86;
+  transition: opacity 0.16s ease;
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.utk-tools:hover,
+.utk-tools:focus-within {
+  opacity: 1;
+}
+
+.utk-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 29px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--utk-ink);
+  font: 650 10.5px/1 var(--utk-mono);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.utk-tool svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+  pointer-events: none;
+}
+
+.utk-tool:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.utk-tool:active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.utk-tool:focus-visible {
+  outline: 2px solid var(--utk-accent);
+  outline-offset: -2px;
+}
+
+.utk-tool.on {
+  background: var(--utk-accent);
+  color: var(--utk-on-accent);
+}
+
+.utk-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.utk-tool:disabled:hover {
+  background: transparent;
+}
+
+.utk-tool-mute.on {
+  background: var(--utk-coral);
+  color: var(--utk-on-accent);
+}
+
+/* Hairline before the less-used half of the bar. */
+.utk-tool-more {
+  position: relative;
+  margin-left: 5px;
+}
+
+.utk-tool-more::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--utk-line);
+}
+
+.utk-tool-more.on {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--utk-ink);
+}
+
+/* ==========================================================================
+   More menu (toolbar)
+   ========================================================================== */
+.utk-menu {
+  position: absolute;
+  top: 46px;
+  right: 10px;
+  z-index: 26;
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  min-width: 206px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--utk-chrome-solid);
+  border: 1px solid var(--utk-line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  font: 550 12px/1.2 var(--utk-sans);
+  color: var(--utk-ink);
+  backdrop-filter: blur(14px);
+}
+
+.utk-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.utk-menu-item:hover,
+.utk-menu-item:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  outline: none;
+}
+
+.utk-menu-item:focus-visible {
+  outline: 2px solid var(--utk-accent);
+  outline-offset: -2px;
+}
+
+.utk-menu-item.on {
+  background: var(--utk-accent-soft);
+}
+
+.utk-menu-item:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.utk-menu-item:disabled:hover {
+  background: transparent;
+}
+
+.utk-menu-item.danger .utk-menu-label {
+  color: var(--utk-coral);
+}
+
+.utk-menu-label {
+  white-space: nowrap;
+}
+
+.utk-menu-key {
+  flex: 0 0 auto;
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--utk-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--utk-muted);
+  font: 600 9.5px/1 var(--utk-mono);
+  text-align: center;
+}
+
+.utk-menu-value {
+  flex: 0 0 auto;
+  color: var(--utk-accent);
+  font: 600 10px/1.2 var(--utk-mono);
+  text-transform: none;
+}
+
+.utk-menu-sep {
+  height: 1px;
+  margin: 4px 5px;
+  background: var(--utk-line-soft);
+}
+
+/* ==========================================================================
+   Shadowban banner
+   ========================================================================== */
+.utk-sb-banner {
+  display: none;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 10px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff6e8;
+  border: 1px solid #e6b273;
+  color: #4a2a06;
+  font-family: var(--utk-sans);
+  box-shadow: 0 2px 8px rgba(74, 42, 6, 0.08);
+}
+
+.dark-mode .utk-sb-banner {
+  background: #221806;
+  border-color: #7a5018;
+  color: #ffd9a3;
+  box-shadow: none;
+}
+
+.utk-sb-icon {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(230, 178, 115, 0.32);
+  color: inherit;
+}
+
+.utk-sb-icon svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+.dark-mode .utk-sb-icon {
+  background: rgba(233, 185, 120, 0.16);
+}
+
+.utk-sb-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 150px;
+  line-height: 1.3;
+}
+
+.utk-sb-copy strong {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.utk-sb-copy span {
+  font-size: 11.5px;
+  opacity: 0.86;
+}
+
+.utk-sb-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.utk-sb-skip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border: 1px solid #c0522c;
+  border-radius: 7px;
+  padding: 6px 11px;
+  background: #d85a33;
+  color: #fff;
+  font: 650 11.5px/1 var(--utk-sans);
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.utk-sb-skip:hover {
+  background: #bf4c27;
+}
+
+.utk-sb-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: background 0.14s ease, opacity 0.14s ease;
+}
+
+.utk-sb-close svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+  pointer-events: none;
+}
+
+.utk-sb-close:hover {
+  opacity: 0.95;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.dark-mode .utk-sb-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ==========================================================================
+   Toasts
+   ========================================================================== */
+.utk-toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  max-width: min(92vw, 460px);
+}
+
+.utk-toast {
+  padding: 8px 13px;
+  border-radius: 8px;
+  background: var(--utk-chrome-solid);
+  border: 1px solid var(--utk-line);
+  color: var(--utk-ink);
+  font: 550 12px/1.3 var(--utk-sans);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  text-align: center;
+  text-shadow: none;
+}
+
+.utk-toast-muted {
+  color: var(--utk-muted);
+}
+
+.utk-toast-ok {
+  border-color: rgba(167, 141, 255, 0.5);
+}
+
+.utk-toast-warn {
+  border-color: var(--utk-amber-line);
+  color: #ffe2b8;
+}
+
+.utk-toast.utk-out {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* ==========================================================================
+   Help overlay
+   ========================================================================== */
+.utk-help {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 6, 13, 0.66);
+  backdrop-filter: blur(4px);
+  font-family: var(--utk-sans);
+}
+
+.utk-help-card {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: min(88vh, 720px);
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--utk-chrome-solid);
+  color: var(--utk-ink);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--utk-line);
+}
+
+.utk-help-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--utk-line-soft);
+}
+
+.utk-help-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.utk-help-head strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.utk-help-head span {
+  font: 500 10px/1.3 var(--utk-mono);
+  opacity: 0.65;
+}
+
+.utk-help-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--utk-ink);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background 0.14s ease, opacity 0.14s ease;
+}
+
+.utk-help-close svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+  pointer-events: none;
+}
+
+.utk-help-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.utk-help-col {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--utk-line) transparent;
+}
+
+.utk-help-col::-webkit-scrollbar {
+  width: 8px;
+}
+
+.utk-help-col::-webkit-scrollbar-thumb {
+  background: var(--utk-line);
+  border-radius: 4px;
+}
+
+.utk-help-col::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.utk-help-col h4 {
+  margin: 0 0 8px;
+  font: 650 9.5px/1 var(--utk-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--utk-accent);
+}
+
+.utk-key {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.utk-key kbd {
+  flex: 0 0 auto;
+  min-width: 24px;
+  text-align: center;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(167, 141, 255, 0.1);
+  border: 1px solid rgba(167, 141, 255, 0.24);
+  font: 600 10.5px/1 var(--utk-mono);
+  color: #d7c9ff;
+}
+
+.utk-help-foot {
+  flex: 0 0 auto;
+  padding: 11px 18px 15px;
+  font: 500 10.5px/1.4 var(--utk-mono);
+  opacity: 0.62;
+  border-top: 1px solid var(--utk-line-soft);
+}
+
+/* Narrow video panes: measured against the wrapper, not the window. */
+@container (max-width: 600px) {
+  .utk-tools {
+    top: 6px;
+    right: 6px;
+    opacity: 0.92;
+  }
+
+  .utk-hud {
+    top: 46px;
+    left: 6px;
+    max-width: calc(100% - 12px);
+    font-size: 9.5px;
+    padding: 4px 7px;
+  }
+
+  .utk-hud > span + span {
+    margin-left: 6px;
+    padding-left: 6px;
+  }
+
+  .utk-menu {
+    top: 44px;
+    right: 6px;
+    min-width: 182px;
+  }
+}
+
+/* A wrapped two-row toolbar needs the readout pushed below it. */
+@container (max-width: 430px) {
+  .utk-hud {
+    top: 76px;
+  }
+
+  .utk-menu {
+    top: 74px;
+  }
+}
