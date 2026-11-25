@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Umingle Toolkit",
   "short_name": "Umingle Toolkit",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "Unlock premium, call tools and privacy controls for Umingle.",
   "minimum_chrome_version": "120",
   "permissions": ["storage", "alarms"],

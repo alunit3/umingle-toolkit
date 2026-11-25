@@ -50,6 +50,9 @@
     socketOpen: false,
     realVip: false,
     moderator: false,
+    premiumAt: 0,
+    textChatToast: false,
+    autoSkipToast: false,
     lastSkipAt: 0,
     lastAutoStopAt: 0,
     throttleAt: 0,
@@ -145,9 +148,9 @@
   }
 
   function afterSettings() {
-    writeGate();
     applySettings();
     sendSettings();
+    writeGate();
     emit('settings', settings);
   }
 
@@ -174,6 +177,7 @@
       persistSettings();
       applySettings();
       sendSettings();
+      writeGate();
       emit('settings', settings);
     }
     return settings;
@@ -184,6 +188,10 @@
     if (root) {
       root.classList.toggle('utk-hide-throttle', !!settings.hideThrottle);
       root.classList.toggle('utk-hide-report', !!settings.antiReport);
+      root.classList.toggle('utk-hide-ban', !!settings.banBypass);
+      root.classList.toggle('utk-hide-login', !!settings.noLoginGate);
+      root.classList.toggle('utk-hide-textchat', !!settings.keepTextChat);
+      root.classList.toggle('utk-hide-tabs', !!settings.multiTab);
       root.classList.toggle('utk-disabled', !settings.enabled);
     }
     applyPremium();
@@ -273,6 +281,41 @@
       case 'banned':
         noteBan(data);
         break;
+      case 'unbanned':
+        if (state.ban) toast('Ban lifted by the server', 'ok', 2200);
+        clearBan();
+        break;
+      case 'premiumReady':
+        // The page world delivered the synthetic Premium frame (or says a
+        // socket is not open yet). Continue a filter restore that waited.
+        if (data && data.ready === false) break;
+        state.premiumAt = Date.now();
+        premiumTries = 0;
+        // The page's own `H9` handler draws its Premium skin when the frame
+        // arrives; re-sync it with the toolkit's switch (the gate can be open
+        // for the country filter while the skin is off).
+        applyPremium();
+        if (premiumRetry) {
+          clearTimeout(premiumRetry);
+          premiumRetry = null;
+          restoreFilterNow();
+        } else if (filterRestorePending) {
+          // The gate needed a socket; this is the first one that opened.
+          restoreFilterNow();
+        }
+        break;
+      case 'textChatKept':
+        if (!state.textChatToast) {
+          state.textChatToast = true;
+          toast('Text chat kept (the server asked to disable it)', 'ok', 2600);
+        }
+        break;
+      case 'autoskipKept':
+        if (!state.autoSkipToast) {
+          state.autoSkipToast = true;
+          toast('Auto-next is controlled by the toolkit', 'muted', 2400);
+        }
+        break;
       case 'navBlocked':
         if (!state.navToast) {
           state.navToast = true;
@@ -345,13 +388,18 @@
       exp = now + hours * 3600 * 1000;
       try { localStorage.setItem(EXPIRY_KEY, String(exp)); } catch (e) { /* private mode */ }
     }
+    // The site now writes and clears both keys; keep the second one in step so
+    // its own countdown and the ban/premium panels read a consistent value.
+    try { localStorage.setItem('premium_expiry', String(exp)); } catch (e) { /* private mode */ }
     return exp;
   }
 
-  /** The site's country filter gate reads only this key (and E.cm). */
+  /** Ask the page world for a synthetic Premium state (the filter gate). */
   function writeGate() {
+    if (!settings.enabled) return;
     if (!(settings.premium || settings.autoSkip || settings.rememberFilter || state.realVip)) return;
     premiumExpiry();
+    postToPage('premium', {});
   }
 
   function expiresSoon(exp) {
@@ -410,10 +458,7 @@
       const header = document.getElementById('checkoutHeaderText');
       if (header && header.textContent.indexOf('Extend') !== -1) header.textContent = 'Get Premium';
       const upgrade = document.querySelector('.premium-upgrade-btn');
-      if (upgrade && upgradeOriginal != null) {
-        upgrade.innerHTML = upgradeOriginal;
-        upgradeOriginal = null;
-      }
+      if (upgrade && upgradeOriginal != null) upgrade.innerHTML = upgradeOriginal;
       return;
     }
 
@@ -455,6 +500,9 @@
       toast('Premium activated by the server', 'ok');
     } else {
       state.realVip = false;
+      // The page's own `premium` flag was cleared with it; a filter restore
+      // must deliver a fresh frame before it clicks.
+      state.premiumAt = 0;
       applyPremium();
     }
     emit('vip', data);
@@ -953,13 +1001,51 @@
     setTimeout(attempt, 400);
   }
 
+  let premiumRetry = null;
+  let premiumTries = 0;
+  // Set when a filter restore needed the page's Premium gate but the socket was
+  // not open yet: clicking then would only open the site's checkout.
+  let filterRestorePending = false;
+
   function restoreFilterNow() {
     const wanted = (settings.filterCountries || [])
       .map((c) => String(c || '').toUpperCase())
       .filter((c) => c && c !== 'ANY');
     if (!wanted.length) return;
 
-    // The site's own click gate reads vip_expiry; write it before clicking.
+    // The site's option gate now reads its own `premium` flag. `vip_expiry` is
+    // written by the page but no longer read, so the page world has to deliver
+    // a synthetic `premiumActive` frame first. That needs an open socket, so
+    // retry briefly while the page connects.
+    const gate = settings.enabled && (settings.premium || settings.autoSkip || settings.rememberFilter);
+    if (gate && !state.premiumAt) {
+      premiumTries++;
+      if (premiumTries <= 30) {
+        premiumExpiry();
+        postToPage('premium', {});
+        if (!premiumRetry) {
+          premiumRetry = setTimeout(() => {
+            premiumRetry = null;
+            restoreFilterNow();
+          }, 300);
+        }
+        return;
+      }
+      // The page has no open socket yet, so no gate can be delivered. Do not
+      // click: with the gate closed the site opens its checkout instead of
+      // selecting. `premiumReady` finishes the restore once the socket opens.
+      premiumTries = 0;
+      filterRestorePending = true;
+      return;
+    }
+    premiumTries = 0;
+    filterRestorePending = false;
+    if (premiumRetry) {
+      clearTimeout(premiumRetry);
+      premiumRetry = null;
+    }
+
+    // Cosmetic only now: the page's Premium countdown reads it.
     premiumExpiry();
 
     const multi = document.getElementById('cf-multi-toggle');
@@ -2096,6 +2182,7 @@
       settingsLoaded = true;
       applySettings();
       sendSettings();
+      writeGate();
       emit('settings', settings);
     });
   } catch (e) { /* extension context invalidated */ }

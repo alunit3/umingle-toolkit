@@ -529,7 +529,7 @@
     helpEl.style.display = 'none';
     helpEl.innerHTML =
       '<div class="utk-help-card" role="dialog" aria-modal="true" aria-label="Umingle Toolkit help">' +
-        '<div class="utk-help-head"><div><strong>Umingle Toolkit</strong><span>v3.6.0 \u00B7 on this device</span></div>' +
+        '<div class="utk-help-head"><div><strong>Umingle Toolkit</strong><span>v3.7.0 \u00B7 on this device</span></div>' +
         '<button type="button" class="utk-help-close" aria-label="Close">' +
         '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">' +
         '<path d="M2.2 2.2 9.8 9.8M9.8 2.2 2.2 9.8"/></svg></button></div>' +

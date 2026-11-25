@@ -40,7 +40,7 @@
   .premium-upgrade-btn { border: 0; border-radius: 8px; padding: 8px 12px; background: var(--violet); color: #fff; font-weight: 700; cursor: pointer; }
   .checkout-card { background: #fff; color: #1f1b2e; padding: 20px; border-radius: 12px; width: 360px; }
   .reportButton { border: 0; background: transparent; color: #8a2f2f; font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 6px; }
-  #banOverlay, #ageVerificationOverlay, #loginOverlay, #popupOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; }
+  #banOverlay, #ageVerificationOverlay, #loginOverlay, #popupOverlay, #textChatDisabledOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; }
   .site-overlay-card { background: #fff; color: #1f1b2e; padding: 18px; border-radius: 12px; width: 320px; }
 </style>
 </head>
@@ -98,6 +98,13 @@
   <div class="site-overlay-card"><strong>Log in to continue</strong></div>
 </div>
 
+<div id="textChatDisabledOverlay">
+  <div class="site-overlay-card">
+    <strong>Text chat is off</strong>
+    <div id="textChatDisabledMessage"></div>
+  </div>
+</div>
+
 <div class="country-filter-wrapper">
   <div class="cf-option selected" data-country="ANY">Smart Match</div>
   <div class="cf-option" data-country="US">United States</div>
@@ -105,6 +112,7 @@
   <div class="cf-option" data-country="BR">Brazil</div>
   <div class="cf-option" data-country="JP">Japan</div>
   <label class="cf-multi-row"><input type="checkbox" id="cf-multi-toggle"> Multi</label>
+  <label class="cf-multi-row"><input type="checkbox" id="cf-autoskip-toggle" checked> Auto-skip</label>
   <button id="cf-reset-btn" type="button">Reset</button></div>
 
 <div id="premiumCheckoutOverlay">
@@ -172,6 +180,12 @@
     ageFlag: false,
     requiresLogin: false,
     reportTarget: 'peer-1',
+    // v3.7 site paths
+    premium: false,
+    premiumFrames: 0,
+    textChatDisabled: 0,
+    unbanned: 0,
+    autoskipChanges: 0,
   };
 
   const $ = (s) => document.querySelector(s);
@@ -265,9 +279,9 @@
     el.addEventListener('click', (ev) => {
       ev.stopPropagation();
       const code = el.getAttribute('data-country');
-      const expiry = parseInt(localStorage.getItem('vip_expiry') || '0', 10);
-      const vip = expiry > Date.now() || window.__h.moderator;
-      if (!vip && code !== 'ANY') {
+      // The live gate reads the page's own `premium` flag only; `vip_expiry`
+      // is still written by the page but no longer read.
+      if (!window.__h.premium && code !== 'ANY') {
         window.__h.checkoutOpens++;
         $('#premiumCheckoutOverlay').style.display = 'flex';
         return;
@@ -288,6 +302,38 @@
       if (close) document.querySelector('.country-filter-wrapper').classList.remove('open');
     });
   });
+
+  // The live `#cf-multi-toggle` click is gated on the same flag.
+  $('#cf-multi-toggle').addEventListener('click', (ev) => {
+    if (!window.__h.premium) {
+      ev.preventDefault();
+      window.__h.checkoutOpens++;
+      $('#premiumCheckoutOverlay').style.display = 'flex';
+    }
+  });
+
+  // The live Settings tab checkbox: `checked = !window.disabled`, and a change
+  // writes `window.disabled`.
+  const autoskipBox = $('#cf-autoskip-toggle');
+  autoskipBox.checked = !window.disabled;
+  autoskipBox.addEventListener('change', (ev) => {
+    window.__h.autoskipChanges++;
+    window.disabled = !ev.target.checked;
+  });
+
+  // What the live `H9()` does for `premiumActive`.
+  function sitePremiumActive(seconds) {
+    window.__h.premium = true;
+    const exp = Date.now() + (Number(seconds) || 0) * 1000;
+    try {
+      localStorage.setItem('vip_expiry', String(exp));
+      localStorage.setItem('premium_expiry', String(exp));
+    } catch (e) { /* ignore */ }
+    document.body.classList.add('is-vip');
+    const upgrade = document.querySelector('.premium-upgrade-btn');
+    if (upgrade) upgrade.innerHTML = '<span class="premium-bolt">⚡</span> Extend';
+  }
+  window.__setPremium = (v) => { window.__h.premium = !!v; };
 
   document.querySelector('.country-filter-wrapper').classList.add('open');
 
@@ -433,11 +479,17 @@
     if (ev.data === 'cm' || ev.data === 'cm2') {
       window.__h.cm = true;
       window.__h.cmRaw = ev.data;
-      window.__h.moderator = true; // the site's E.cm, also read by the filter gate
+      window.__h.moderator = true; // the site's E.cm
+      window.__h.premium = true;   // ...and the site's E.premium
       return;
     }
-    if (ev.data === 'ncm') { window.__h.cm = false; window.__h.moderator = false; return; }
-    if (ev.data === 'newtab') { window.__h.newtab++; showMultipleTabs(); return; }
+    if (ev.data === 'ncm') {
+      // `Ha()` clears Premium and the filters.
+      window.__h.cm = false;
+      window.__h.moderator = false;
+      window.__h.premium = false;
+      return;
+    }    if (ev.data === 'newtab') { window.__h.newtab++; showMultipleTabs(); return; }
     if (ev.data === 'forceEnd') {
       window.__h.forceEnds++;
       siteEnd();
@@ -478,6 +530,20 @@
       $('#premiumThrottle').style.display = 'flex';
     } else if (msg.event === 'vip_active') {
       window.__h.vipActive = true;
+    } else if (msg.event === 'premiumActive') {
+      window.__h.premiumFrames++;
+      sitePremiumActive(msg.seconds);
+    } else if (msg.event === 'unbanned') {
+      window.__h.unbanned++;
+      window.__h.bannedFlag = false;
+      window.__h.ageFlag = false;
+      $('#banOverlay').style.display = 'none';
+      $('#ageVerificationOverlay').style.display = 'none';
+    } else if (msg.event === 'textChatDisabled') {
+      window.__h.textChatDisabled++;
+      siteEnd();
+      $('#textChatDisabledMessage').innerText = msg.message || '';
+      $('#textChatDisabledOverlay').style.display = 'flex';
     } else if (msg.event === 'cookie') {
       window.__h.cookies++;
       document.cookie = 'user=' + msg.id + '; Max-Age=31536000; Path=/; Secure';
@@ -524,7 +590,9 @@
       $('#loginOverlay').style.display = 'flex';
     } else if (msg.event === 'premiumExpired') {
       window.__h.premiumExpireds++;
+      window.__h.premium = false;
       localStorage.removeItem('vip_expiry');
+      localStorage.removeItem('premium_expiry');
       document.body.classList.remove('is-vip');
     } else if (msg.event === 'clearInterests') {
       window.__h.clearInterests++;

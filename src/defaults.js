@@ -18,9 +18,10 @@
     enabled: true,
 
     // --- Premium simulation -------------------------------------------------
-    // Draw the Premium skin (badge, banner, "Extend" button). The vip_expiry
-    // key is still written while autoSkip is on, because the site's own
-    // country-filter click gate reads it.
+    // Draw the Premium skin (badge, banner, "Extend" button). The site's
+    // country/language option gate reads its own in-page `premium` flag, which
+    // only a `premiumActive` frame sets; the page world delivers a synthetic
+    // one (see main-world.js). `vip_expiry` is still written for cosmetics.
     premium: true,
     premiumHours: 24,
     // Hide the free-skip nag. The wait itself is server-side.
@@ -133,6 +134,10 @@
     keepPremium: false,
     // Ignore `clearInterests` (the server asking the page to wipe interests).
     keepInterests: false,
+    // Ignore `textChatDisabled` (the server ending a match to switch text chat
+    // off). The chat field itself keeps working; a server-side mute still
+    // applies.
+    keepTextChat: false,
 
     // --- Misc ---------------------------------------------------------------
     hotkeys: true,
@@ -200,6 +205,11 @@
       noLoginGate: !!settings.noLoginGate,
       keepPremium: !!settings.keepPremium,
       keepInterests: !!settings.keepInterests,
+      keepTextChat: !!settings.keepTextChat,
+      // The country/language option gate is the only consumer of the synthetic
+      // Premium frame; keep it available whenever a filter feature may need it.
+      premiumGate: !!(settings.premium || settings.autoSkip || settings.rememberFilter),
+      premiumHours: Math.max(1, Math.min(720, Number(settings.premiumHours) || 24)),
     };
   }
 

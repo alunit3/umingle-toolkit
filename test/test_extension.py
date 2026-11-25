@@ -353,6 +353,12 @@ def main():
 
             hours = h.eval("(parseInt(localStorage.getItem('vip_expiry')||'0',10) - Date.now())/3600000")
             check("vip_expiry is ~24 h ahead", isinstance(hours, (int, float)) and 23 <= hours <= 25, hours)
+            check("premium_expiry is written too",
+                  (h.eval("parseInt(localStorage.getItem('premium_expiry')||'0',10)") or 0) > time.time() * 1000,
+                  h.eval("localStorage.getItem('premium_expiry')"))
+            check("a synthetic premiumActive frame reaches the page",
+                  h.eval("window.__h.premium") is True and (h.eval("window.__h.premiumFrames") or 0) >= 1,
+                  [h.eval("window.__h.premium"), h.eval("window.__h.premiumFrames")])
             check("body.is-vip", h.eval("document.body.classList.contains('is-vip')") is True)
             check("Premium badge visible", h.eval("getComputedStyle(document.getElementById('vipStatusBadge')).display") == "flex",
                   h.eval("document.getElementById('vipStatusBadge').style.display"))
@@ -555,6 +561,29 @@ def main():
                       """async () => (await chrome.storage.local.get('lastBan')).lastBan"""
                   ) is None)
 
+            # The extension-driven reload does not call the harness's own
+            # `__connect()`, so open a socket before sending more frames.
+            hb.page.evaluate("window.__connect()")
+            poll(lambda: hb.eval("window.__h.wsOpen") is True, timeout=5)
+
+            # The server's own `unbanned` clears the stored ban too.
+            hb.send({"event": "banned", "reason": "server-lift", "banId": "ban-2"})
+            time.sleep(0.8)
+            check("a fresh ban is stored before unbanned",
+                  ctrl.evaluate(
+                      """async () => (await chrome.storage.local.get('lastBan')).lastBan"""
+                  ) is not None)
+            hb.send({"event": "unbanned"})
+            time.sleep(0.7)
+            check("unbanned reaches the page", hb.eval("window.__h.unbanned") == 1,
+                  hb.eval("window.__h.unbanned"))
+            check("unbanned clears the stored ban",
+                  ctrl.evaluate(
+                      """async () => (await chrome.storage.local.get('lastBan')).lastBan"""
+                  ) is None)
+            check("unbanned hides the site's ban overlay",
+                  hb.eval("getComputedStyle(document.getElementById('banOverlay')).display") == "none")
+
             OWN["ip"] = "203.0.113.10"
             hb.close()
 
@@ -574,7 +603,9 @@ def main():
             ok_restore = poll(lambda: h.eval("window.__selectedCodes()") == ["US"], timeout=5)
             check("filter restored after reload", ok_restore,
                   h.eval("window.__selectedCodes()"))
-            check("restore wrote the Premium gate", (h.eval("parseInt(localStorage.getItem('vip_expiry')||'0',10)") or 0) > time.time() * 1000)
+            check("restore opened the page Premium gate",
+                  h.eval("window.__h.premium") is True and (h.eval("window.__h.premiumFrames") or 0) >= 1,
+                  [h.eval("window.__h.premium"), h.eval("window.__h.premiumFrames")])
             check("ANY is not selected after restore",
                   h.eval("document.querySelector('.cf-option[data-country=ANY]').classList.contains('selected')") is False)
 
@@ -610,22 +641,23 @@ def main():
                   "United States" in str(h.eval("document.getElementById('countryName').textContent")),
                   h.eval("document.getElementById('countryName').textContent"))
 
-            # The page's own gate: with the toolkit off and no vip_expiry, a
-            # country click must open the checkout instead of selecting.
+            # The page's own gate: with the toolkit off and no synthetic
+            # `premiumActive` delivered, a country click must open the checkout.
             set_settings({"enabled": False})
             time.sleep(0.4)
-            h.eval("localStorage.removeItem('vip_expiry')")
+            h.eval("window.__setPremium(false)")
             h.page.click('.cf-option[data-country="BR"]')
             time.sleep(0.3)
-            check("page gate blocks countries without vip_expiry",
+            check("page gate blocks countries without Premium",
                   h.eval("window.__h.checkoutOpens") == 1, h.eval("window.__h.checkoutOpens"))
             h.eval("window.__closeCheckout()")
             check("toolkit off leaves no Premium body class",
                   h.eval("document.body.classList.contains('is-vip')") is False)
             set_settings({"enabled": True})
             time.sleep(0.6)
-            check("toolkit on restores the gate",
-                  (h.eval("parseInt(localStorage.getItem('vip_expiry')||'0',10)") or 0) > time.time() * 1000)
+            check("toolkit on reopens the page gate",
+                  h.eval("window.__h.premium") is True,
+                  [h.eval("window.__h.premium"), h.eval("window.__h.premiumFrames")])
 
             # =============================================================
             # 4. Throttle nag
@@ -1123,7 +1155,7 @@ def main():
                   ctrl.inner_text("#statCountries"))
             check("popup filter summary shows the saved country",
                   "United States" in ctrl.inner_text("#filterSummary"), ctrl.inner_text("#filterSummary"))
-            check("popup version is 3.6.0", ctrl.inner_text("#version") == "3.6.0", ctrl.inner_text("#version"))
+            check("popup version is 3.7.0", ctrl.inner_text("#version") == "3.7.0", ctrl.inner_text("#version"))
             check("popup has no theme picker", ctrl.query_selector("#themeSeg") is None)
             check("popup has the stranger IP memory toggle",
                   ctrl.query_selector('.toggle[data-key="ipHistory"]') is not None)
@@ -1152,7 +1184,7 @@ def main():
             check("popup lists all v3.2 toggles", not missing, missing)
             v33_keys = [
                 "banBypass", "antiReport", "freshVisitor", "blockRedirects",
-                "noLoginGate", "keepPremium", "keepInterests",
+                "noLoginGate", "keepPremium", "keepInterests", "keepTextChat",
             ]
             missing33 = [k for k in v33_keys if ctrl.query_selector('.toggle[data-key="%s"]' % k) is None]
             check("popup lists all v3.3 toggles", not missing33, missing33)
@@ -1265,7 +1297,7 @@ def main():
             ctrl.evaluate(
                 """async () => {
                     await chrome.storage.local.set({ updateInfo: {
-                        latest: '9.9.9', current: '3.6.0', available: true,
+                        latest: '9.9.9', current: '3.7.0', available: true,
                         url: 'https://github.com/alunit3/umingle-toolkit/releases/tag/v9.9.9',
                         checkedAt: Date.now(), error: '',
                     } });
@@ -1511,15 +1543,17 @@ def main():
 
             # moderator mode: the site's `cm` state, plus the Premium gate.
             reset_settings()
-            set_settings({"moderatorMode": True, "premium": False})
+            set_settings({"moderatorMode": True, "premium": False,
+                          "autoSkip": False, "rememberFilter": False})
             h12 = Harness(ctx, "p12")
             h12.reload()
             time.sleep(0.7)
             check("moderator mode delivers cm", h12.eval("window.__h.cm") is True,
                   h12.eval("window.__h.cmRaw"))
+            check("moderator mode opens the page Premium gate",
+                  h12.eval("window.__h.premium") is True)
             check("moderator mode draws the Premium skin",
                   h12.eval("document.body.classList.contains('is-vip')") is True)
-            h12.eval("localStorage.removeItem('vip_expiry')")
             h12.page.click('.cf-option[data-country="BR"]')
             time.sleep(0.4)
             check("moderator mode passes the country gate",
@@ -1528,22 +1562,19 @@ def main():
                   h12.eval("window.__selectedCodes()") == ["BR"], h12.eval("window.__selectedCodes()"))
             h12.page.click('.cf-option[data-country="ANY"]')
             time.sleep(0.4)
-            # The BR click saved the filter; clear the saved list explicitly.
-            # Otherwise the next reload restores BR, and the restore path also
-            # writes vip_expiry, which would make the free-gate check pass for
-            # the wrong reason.
-            set_settings({"filterCountries": [], "rememberFilter": False})
-            time.sleep(0.4)
-            check("moderator test cleared the saved filter",
-                  get_settings().get("filterCountries") == [] and
-                  get_settings().get("rememberFilter") is False,
-                  [get_settings().get("filterCountries"), get_settings().get("rememberFilter")])
+            # The BR click cannot save the filter with `rememberFilter` off; the
+            # page itself resets on reload.
+            check("moderator test kept the saved filter empty",
+                  get_settings().get("filterCountries") == [],
+                  get_settings().get("filterCountries"))
 
             set_settings({"moderatorMode": False, "premium": False})
             h12.reload()
             time.sleep(0.6)
-            h12.eval("localStorage.removeItem('vip_expiry')")
             check("moderator off delivers no cm", h12.eval("window.__h.cm") is False)
+            check("moderator off delivers no Premium frame",
+                  h12.eval("window.__h.premium") is False,
+                  [h12.eval("window.__h.premium"), h12.eval("window.__h.premiumFrames")])
             check("moderator off leaves the Premium skin off",
                   h12.eval("document.body.classList.contains('is-vip')") is False)
             h12.page.click('.cf-option[data-country="JP"]')
@@ -1578,7 +1609,36 @@ def main():
             check("auto-next off stops the search",
                   (h13.eval("window.__h.autoSearches") or 0) == before_search,
                   h13.eval("window.__h.autoSearches"))
+            # The site's Settings tab box owns `window.disabled` while the
+            # toolkit's auto-next is off.
+            h13.eval("window.disabled = false")
+            h13.page.click("#cf-autoskip-toggle")
+            time.sleep(0.3)
+            check("auto-next off lets the site box uncheck",
+                  h13.eval("document.getElementById('cf-autoskip-toggle').checked") is False,
+                  h13.eval("document.getElementById('cf-autoskip-toggle').checked"))
+            check("auto-next off lets the site handler run",
+                  h13.eval("window.__h.autoskipChanges") == 1 and h13.eval("window.disabled") is True,
+                  [h13.eval("window.__h.autoskipChanges"), h13.eval("window.disabled")])
+
             set_settings({"autoNext": True})
+            h13.reload()
+            time.sleep(0.4)
+            before_changes = h13.eval("window.__h.autoskipChanges") or 0
+            h13.page.click("#cf-autoskip-toggle")
+            time.sleep(0.3)
+            check("auto-next keeps the site box checked",
+                  h13.eval("document.getElementById('cf-autoskip-toggle').checked") is True,
+                  h13.eval("document.getElementById('cf-autoskip-toggle').checked"))
+            check("auto-next swallows the site change",
+                  (h13.eval("window.__h.autoskipChanges") or 0) == before_changes,
+                  h13.eval("window.__h.autoskipChanges"))
+            check("auto-next keeps the site flag clear after the click",
+                  h13.eval("window.disabled") is False, h13.eval("window.disabled"))
+            check("the toolkit says who owns auto-next",
+                  "controlled by the toolkit" in str(
+                      h13.eval("(document.querySelector('.utk-toasts') || {}).textContent")).lower(),
+                  h13.eval("(document.querySelector('.utk-toasts') || {}).textContent"))
 
             # =============================================================
             # 12. sb unblank + moderation snapshot spoof
@@ -1739,6 +1799,8 @@ def main():
                   h21.eval("window.__h.premiumExpireds"))
             check("premium expiry keeps the simulated subscription",
                   h21.eval("!!localStorage.getItem('vip_expiry')") is True)
+            check("premium expiry keeps the page Premium flag",
+                  h21.eval("window.__h.premium") is True, h21.eval("window.__h.premium"))
             h21.eval("window.__h.cm = true")
             h21.raw("ncm")
             time.sleep(0.4)
@@ -1749,6 +1811,37 @@ def main():
                   h21.eval("window.__h.clearInterests"))
             check("interests survive clearInterests", h21.eval(
                 "!!localStorage.getItem('interests')") is True)
+
+            # Text chat: the server's `textChatDisabled` ends the match and
+            # shows an overlay. `keepTextChat` hides the frame instead.
+            h21.send({"event": "textChatDisabled", "message": "Text chat is off"})
+            time.sleep(0.5)
+            check("textChatDisabled ends the match by default",
+                  h21.eval("window.__h.textChatDisabled") == 1,
+                  h21.eval("window.__h.textChatDisabled"))
+            check("the text chat overlay shows by default",
+                  h21.eval("getComputedStyle(document.getElementById('textChatDisabledOverlay')).display") == "flex",
+                  h21.eval("document.getElementById('textChatDisabledOverlay').style.cssText"))
+            set_settings({"keepTextChat": True})
+            time.sleep(0.5)
+            ends_before = h21.eval("window.__h.ends") or 0
+            h21.send({"event": "textChatDisabled", "message": "Text chat is off"})
+            time.sleep(0.5)
+            check("keep text chat hides the frame",
+                  h21.eval("window.__h.textChatDisabled") == 1,
+                  h21.eval("window.__h.textChatDisabled"))
+            check("keep text chat keeps the match",
+                  (h21.eval("window.__h.ends") or 0) == ends_before,
+                  [ends_before, h21.eval("window.__h.ends")])
+            check("keep text chat hides the overlay",
+                  h21.eval("getComputedStyle(document.getElementById('textChatDisabledOverlay')).display") == "none",
+                  h21.eval("document.getElementById('textChatDisabledOverlay').style.cssText"))
+            check("keep text chat toasts once",
+                  "text chat kept" in str(
+                      h21.eval("(document.querySelector('.utk-toasts') || {}).textContent")).lower(),
+                  h21.eval("(document.querySelector('.utk-toasts') || {}).textContent"))
+            set_settings({"keepTextChat": False})
+            time.sleep(0.4)
 
             set_settings({"blockRedirects": False, "noLoginGate": False,
                           "keepPremium": False, "keepInterests": False})
@@ -1772,6 +1865,8 @@ def main():
             time.sleep(0.4)
             check("premium expiry reaches the page",
                   h22.eval("window.__h.premiumExpireds") == 1, h22.eval("window.__h.premiumExpireds"))
+            check("premium expiry clears the page Premium flag",
+                  h22.eval("window.__h.premium") is False, h22.eval("window.__h.premium"))
             h22.send({"event": "clearInterests"})
             time.sleep(0.4)
             check("clearInterests reaches the page",

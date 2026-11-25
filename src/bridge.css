@@ -36,6 +36,18 @@ html.utk-hide-report .reportButton {
   display: none !important;
 }
 
+/* A gate can be switched on after the page already showed its overlay (or the
+   frame arrived before the setting loaded). Hide the overlay for as long as
+   the matching gate is on; the site's own handlers stay untouched. */
+html.utk-hide-ban #banOverlay,
+html.utk-hide-ban #ageVerificationOverlay,
+html.utk-hide-ban #codaIframeOverlay,
+html.utk-hide-login #loginOverlay,
+html.utk-hide-textchat #textChatDisabledOverlay,
+html.utk-hide-tabs #multipleTabsOverlay {
+  display: none !important;
+}
+
 html.utk-disabled .utk-hud,
 html.utk-disabled .utk-tools,
 html.utk-disabled .utk-menu,

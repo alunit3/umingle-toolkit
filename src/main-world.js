@@ -26,7 +26,7 @@
 
   const MARK = 'uming-sync';
   const ORIGIN = location.origin;
-  const VERSION = '3.6.0';
+  const VERSION = '3.7.0';
   const DEBUG = false;
   // The offline harness replaces this line with `true` in a scratch copy so it
   // can call the label mapper. Never true on the real site.
@@ -58,6 +58,11 @@
     noLoginGate: false,
     keepPremium: false,
     keepInterests: false,
+    keepTextChat: false,
+    // Synthetic Premium for the country/language option gate. The site reads
+    // its own in-page flag, which only a `premiumActive` frame sets.
+    premiumGate: true,
+    premiumHours: 24,
   };
 
   const state = Object.assign({}, DEFAULTS);
@@ -122,6 +127,12 @@
     }
     if (msg.type === 'publicIp') {
       fetchOwnIp(!!(msg.data && msg.data.force));
+      return;
+    }
+    if (msg.type === 'premium') {
+      // The isolated world needs the page's Premium state before it clicks a
+      // country/language option (the site's gate reads its own flag).
+      post('premiumReady', { ready: deliverPremium(currentSocket), at: Date.now() });
     }
   });
 
@@ -255,6 +266,9 @@
         deliverFrame(ws, 'cm');
         post('moderator', { synthetic: true, at: Date.now() });
       }
+      // A new socket starts with the page's Premium flag still set (it is page
+      // state), but re-delivering is cheap and covers a fresh tab.
+      if (deliverPremium(ws)) post('premiumReady', { synthetic: true, at: Date.now() });
     });
     ws.addEventListener('close', () => {
       if (currentSocket === ws) currentSocket = null;
@@ -278,6 +292,27 @@
       log('deliver', e);
       return false;
     }
+  }
+
+  /** Seconds a simulated subscription should last (at least an hour). */
+  function premiumSeconds() {
+    const hours = Math.max(1, Math.min(720, Number(state.premiumHours) || 24));
+    return Math.max(3600, Math.round(hours * 3600));
+  }
+
+  /**
+   * The site's country/language option gate now reads its own `premium` flag.
+   * `vip_expiry` is still written by the page but no longer read, so the only
+   * way in is a `premiumActive` frame; deliver it locally (nothing is sent).
+   */
+  function deliverPremium(ws) {
+    if (!state.enabled || !state.premiumGate) return false;
+    const target = ws || currentSocket;
+    if (!target || target.readyState !== 1) return false;
+    return deliverFrame(target, JSON.stringify({
+      event: 'premiumActive',
+      seconds: premiumSeconds(),
+    }));
   }
 
   /**
@@ -410,6 +445,15 @@
       return;
     }
 
+    // `textChatDisabled` ends the match and shows an overlay. The chat field
+    // itself still works, so hiding the frame keeps the call and the chat
+    // (a server-side mute is unaffected).
+    if (msg.event === 'textChatDisabled' && state.enabled && state.keepTextChat) {
+      try { ev.stopImmediatePropagation(); } catch (e) { /* ignore */ }
+      post('textChatKept', { at: Date.now() });
+      return;
+    }
+
     // A server-side Premium expiry would reset filters and the sim Premium.
     if ((msg.event === 'ncm' || msg.event === 'premiumExpired') &&
         state.enabled && state.keepPremium) {
@@ -439,6 +483,10 @@
     if (!msg || typeof msg.event !== 'string') return;
 
     if (msg.event === 'findPeer') {
+      // Keep the simulated Premium alive: the page's own countdown clears it
+      // (and closes the filter gate) when it reaches zero. Deliver after the
+      // frame is sent, never re-entrantly inside the page's `send`.
+      queueMicrotask(() => { try { deliverPremium(ws); } catch (e) { /* ignore */ } });
       post('search', { at: Date.now() });
       return;
     }
@@ -812,6 +860,7 @@
       return;
     }
     autoNextOn = true;
+    syncAutoSkipToggle();
     if (autoNextInstalled) return;
     let current = false;
     try {
@@ -832,6 +881,30 @@
       autoNextInstalled = false;
     }
   }
+
+  /**
+   * The site's Settings tab has its own auto-skip box (`#cf-autoskip-toggle`):
+   * `checked = !window.disabled`, and a change writes `window.disabled`. With
+   * the toolkit's auto-next on the accessor keeps the flag false, so an
+   * unchecked box would look off while the search went on. Keep it checked and
+   * swallow the change; the popup's Auto-next switch is the real control.
+   */
+  function syncAutoSkipToggle() {
+    if (!state.enabled || !state.autoNext) return;
+    const box = document.getElementById('cf-autoskip-toggle');
+    if (box && !box.checked) box.checked = true;
+  }
+
+  document.addEventListener('change', (ev) => {
+    const target = ev.target;
+    if (!target || target.id !== 'cf-autoskip-toggle') return;
+    if (!state.enabled || !state.autoNext) return;
+    target.checked = true;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    post('autoskipKept', { at: Date.now() });
+  }, true);
 
   function applySessionSettings() {
     if (state.enabled && state.multiTab) clearVisitorCookie();
@@ -872,6 +945,9 @@
         break;
       case 'cm':
         post('moderator', {});
+        break;
+      case 'unbanned':
+        post('unbanned', { at: Date.now() });
         break;
       case 'changeCountry':
         post('changeCountry', { name: msg.cName || '', code: msg.country || '' });

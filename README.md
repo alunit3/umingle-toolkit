@@ -52,6 +52,7 @@ Chromium browsers work too.
 
 - New identity button, ban notices hidden
 - Login prompt, server redirects and Premium resets ignored
+- Server text-chat cut-off ignored mid-call
 - Anti-report: report button hidden
 - Ban check remembers the address and asks you to change IP before New
   identity
@@ -87,7 +88,7 @@ npm run build
 Load `dist/` with **Load unpacked** to test the shipped build, or load the
 repository folder to run from source.
 
-Offline end-to-end suite (Playwright, local harness, 305 checks):
+Offline end-to-end suite (Playwright, local harness, 327 checks):
 
 ```bash
 pip install playwright
